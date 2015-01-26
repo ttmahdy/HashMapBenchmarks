@@ -2,9 +2,16 @@ import gnu.trove.impl.hash.TLongLongHash;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -28,86 +35,177 @@ public class Compare {
 	public final static byte INT_16 = 0b0010; // 2 (18 ..)
 	public final static byte INT_32 = 0b0011; // 3 (19 ..)
 	public final static byte INT_64 = 0b0100; // 4 (20 ..)
-	static long[] lookupValue;
+	static long[] keyValues;
 	static int[] lookupIntValue;
 	public static ObjectToBeSerialised[] arrayOfObjects;
 	public static boolean getSize = false;
 
 	private static ObjectToBeSerialised ITEM;
 	
-	public static void runMultiHashMap(int rowCount) throws SecurityException, Exception {
+	public static void runMultiHashMap(int keyCount) throws SecurityException, Exception {
 		@SuppressWarnings("unused")
-		UnSafeMultiHashMap multiMap = new UnSafeMultiHashMap(8, 8, rowCount, 0.70d);
-		
-		HashMap<Long, Long> javaHashMap = new HashMap<Long, Long>(rowCount);
 
+		UnSafeMultiHashMap multiMap = new UnSafeMultiHashMap(8, 8, keyCount, 0.7d);
+		HashMap<Long, Long> javaHashMap = new HashMap<Long, Long>(keyCount, (float)0.7);
+		TLongLongHashMap troveHashMap = new TLongLongHashMap(keyCount, (float)0.7);
+		HashMultimap<Long,Long> javaMultiMap = HashMultimap.create(keyCount, 1);
+		
 		long startTime = System.nanoTime();
-		for (long i = 0; i < rowCount; i++) {
-			multiMap.put(lookupValue[(int)i], lookupValue[(int)i] + 10000000);
+		
+		for (long i = 0; i < keyCount; i++) {
+			multiMap.put(keyValues[(int)i], keyValues[(int)i] + 10000000);
 		}
-		System.out.println("UnSafeMultiHashMap inserted "+ rowCount + " @ \t"
-				+ (int)(rowCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+		System.out.println("UnSafeMultiHashMap inserted "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
 				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0));
 
 		startTime = System.nanoTime();
-		for (long i = 0; i < rowCount; i++) {
-			javaHashMap.put(lookupValue[(int)i], lookupValue[(int)i] + 10000000);
+		for (long i = 0; i < keyCount; i++) {
+			javaHashMap.put(keyValues[(int)i], keyValues[(int)i] + 10000000);
 		}
-		System.out.println("Java Hash Map inserted "+ rowCount + " @ \t"
-				+ (int)(rowCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+		System.out.println("Java Hash Map inserted "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0));
+		
+		startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			troveHashMap.put(keyValues[(int)i], keyValues[(int)i] + 10000000);
+		}
+		System.out.println("Trove Hash Map inserted "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0));
+		
+		startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			javaMultiMap.put(keyValues[(int)i], keyValues[(int)i] + 10000000);
+		}
+		System.out.println("Java Multi Map inserted "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
 				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0));
 
 		if (multiMap.putProbeCount > 0) {
-			System.out.println("Total probe for set : " + multiMap.putProbeCount + " average per lookup " + (double)((double)multiMap.putProbeCount / (double)rowCount) );
+			System.out.println("Total probe for set : " + multiMap.putProbeCount + " average per lookup " + (double)((double)multiMap.putProbeCount / (double)keyCount) );
 		}
 
-		startTime = System.nanoTime();
 		long unsafeMatch = 0;
 		long javaMatch = 0;
-		for (long i = 0; i < rowCount; i++) {
-			if (multiMap.get(lookupValue[(int)i]) != -1)
+		long troveMatch = 0;
+		long javaMultiMatch = 0;
+
+		startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			if (multiMap.get(keyValues[(int)i]) != -1)
 				unsafeMatch++;
 		}
-		System.out.println("UnSafeMultiHashMap get "+ rowCount + " @ \t"
-				+ (int)(rowCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+		System.out.println("UnSafeMultiHashMap get "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
 				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0) + " qualified " + unsafeMatch);
 
 		startTime = System.nanoTime();
-		for (long i = 0; i < rowCount; i++) {
-			if (javaHashMap.get(lookupValue[(int)i]) != -1)
+		for (long i = 0; i < keyCount; i++) {
+			if (javaHashMap.get(keyValues[(int)i]) != -1)
 				javaMatch++;
 		}
-		System.out.println("Java Hash Map get "+ rowCount + " @ \t"
-				+ (int)(rowCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+		System.out.println("Java Hash Map get "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
 				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0) + " qualified " + javaMatch);
 		
-		if (multiMap.putProbeCount > 0) {
-			System.out.println("Total probe for get : " + multiMap.getProbeCount + " average per lookup " + (double)((double)multiMap.getProbeCount / (double)rowCount) );
+		startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			if (troveHashMap.get(keyValues[(int)i]) != -1)
+				troveMatch++;
+		}
+		System.out.println("Trove Hash Map get "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0) + " qualified " + troveMatch);
+
+		startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			if (javaMultiMap.get(keyValues[(int)i]) != null)
+				javaMultiMatch++;
+		}
+		System.out.println("MultiMap Hash Map get "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0) + " qualified " + javaMultiMatch);
+		
+		
+		if (multiMap.softProbeCount > 0 || multiMap.hardProbeCount > 0) {
+			long totalProbes = multiMap.softProbeCount + multiMap.hardProbeCount;
+			System.out.println("Total probe for get : " + totalProbes + " average per lookup " + (double)((double)totalProbes / (double)keyCount) );
+			System.out.println("\t Soft probes for get : " + multiMap.softProbeCount + " average per lookup " + (double)((double)multiMap.softProbeCount / (double)keyCount) );
+			System.out.println("\t Hard probes for get : " + multiMap.hardProbeCount + " average per lookup " + (double)((double)multiMap.hardProbeCount / (double)keyCount) );
 		}
 
+		if (getSize)
+			System.out.println("Hash Map size : "
+					+ SizeOf.deepSizeOf(javaHashMap) / 1024 + " KB" + "\n");
+		
+		if (getSize)
+			System.out.println("Trove Map size : "
+					+ SizeOf.deepSizeOf(troveHashMap) / 1024 + " KB" + "\n");
 
+		if (getSize)
+			System.out.println("Java Multi Map size : "
+					+ SizeOf.deepSizeOf(javaMultiMap) / 1024 + " KB" + "\n");
+
+		javaHashMap.size();
+		troveHashMap.size();
+		javaMultiMap.size();
 		//multiMap.get(17);
 
 		//multiMap.get(28);
 		multiMap.releaseMemory();
 	}
 	
-	public static void testMultiHashMap(int rowCount) throws SecurityException, Exception {
-		@SuppressWarnings("unused")
-		UnSafeMultiHashMap multiMap = new UnSafeMultiHashMap(8, 8, rowCount, 0.99d);
+	public static void testMultiHashMap(int keyCount) throws SecurityException, Exception {
+		
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+		Date date = new Date();
 
-		for (long i = 0; i < rowCount * 2; i++) {
-			multiMap.put(i, i + 10000000);
+		
+		@SuppressWarnings("unused")
+		UnSafeMultiHashMap multiMap = new UnSafeMultiHashMap(8, 8, keyCount, 0.9d);
+
+		System.out.println("Start load :" + dateFormat.format(new Date())); //2014/08/06 15:59:48
+		long startTime = System.nanoTime();
+		for (long i = 0; i < keyCount; i++) {
+			multiMap.put(keyValues[(int)i], keyValues[(int)i] + 10000000);
 		}
+		System.out.println("End load :" + dateFormat.format(new Date())); //2014/08/06 15:59:48
+		System.out.println("UnSafeMultiHashMap inserted "+ keyCount + " @ \t\t\t"
+				+ (int)(keyCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0));
 
 		if (multiMap.putProbeCount > 0) {
-			System.out.println("Total probe count : " + multiMap.putProbeCount + " average per lookup " + (double)((double)multiMap.putProbeCount / (double)rowCount) );
+			System.out.println("Total probe for set : " + multiMap.putProbeCount + " average per lookup " + (double)((double)multiMap.putProbeCount / (double)keyCount) );
 		}
 		
-		long reValue;
-		for (long i = 0; i < 20; i++) {
-			reValue = multiMap.get(i);
+		//Thread.sleep(5000);
+		
+		startTime = System.nanoTime();
+		System.out.println("Start get :" + dateFormat.format(new Date())); //2014/08/06 15:59:48
+		int innerLoopCount = 5;
+		for (int j = 0; j < innerLoopCount; j ++) {
+			for (long i = 0; i < keyCount; i++) {
+				multiMap.get(keyValues[(int)i]);
+			}
 		}
+		System.out.println("End get :" + dateFormat.format(new Date())); //2014/08/06 15:59:48
+		System.out.println("UnSafeMultiHashMap get "+ keyCount * innerLoopCount + " @ \t\t\t"
+				+ (int)(keyCount * innerLoopCount / 1000 / ((System.nanoTime() - startTime) / 1000000000.0)) 
+				+ " KRows/sec, in " + ((System.nanoTime() - startTime) / 1000000000.0) + " qualified " );
+		
+		if (multiMap.softProbeCount > 0 || multiMap.hardProbeCount > 0) {
+			long totalProbes = multiMap.softProbeCount + multiMap.hardProbeCount;
+			System.out.println("Total probe for get : " + totalProbes + " average per lookup " + (double)((double)totalProbes / (double)keyCount) );
+			System.out.println("\t Soft probes for get : " + multiMap.softProbeCount + " average per lookup " + (double)((double)multiMap.softProbeCount / (double)keyCount) );
+			System.out.println("\t Hard probes for get : " + multiMap.hardProbeCount + " average per lookup " + (double)((double)multiMap.hardProbeCount / (double)keyCount) );
+		}
+		
+		//long reValue;
+		//for (long i = 0; i < 30; i++) {
+		//	reValue = multiMap.get(i);
+		//}
 		
 		//multiMap.get(17);
 
@@ -435,7 +533,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.get(lookupValue[i]);
+			jIntIntMap.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -447,7 +545,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.containsKey(lookupValue[i]);
+			jIntIntMap.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -503,7 +601,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.getRowContainer(lookupValue[i]);
+			jIntIntMap.getRowContainer(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -516,7 +614,7 @@ public class Compare {
 		startTime = System.nanoTime();
 		int matchRows = 0;
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.containsKey(lookupValue[i]);
+			jIntIntMap.containsKey(keyValues[i]);
 		}
 
 		System.out
@@ -558,7 +656,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.get(lookupValue[i]);
+			jIntIntMap.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -570,7 +668,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.containsKey(lookupValue[i]);
+			jIntIntMap.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -609,7 +707,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			chm.get(lookupValue[i]);
+			chm.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -621,7 +719,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			chm.containsKey(lookupValue[i]);
+			chm.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -657,7 +755,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.get(lookupValue[i]);
+			jIntIntMap.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -669,7 +767,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			jIntIntMap.containsKey(lookupValue[i]);
+			jIntIntMap.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -716,7 +814,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			tIntIntMap.get(lookupValue[i]);
+			tIntIntMap.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -728,7 +826,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			tIntIntMap.containsKey(lookupValue[i]);
+			tIntIntMap.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -763,7 +861,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			cLongLongMap.get(lookupValue[i]);
+			cLongLongMap.get(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -775,7 +873,7 @@ public class Compare {
 
 		startTime = System.nanoTime();
 		for (int i = 0; i < lookups; i++) {
-			cLongLongMap.containsKey(lookupValue[i]);
+			cLongLongMap.containsKey(keyValues[i]);
 		}
 		System.out
 				.println("\n-- "
@@ -842,39 +940,117 @@ public class Compare {
 	      return true;
 	  }
 	
+	  public static  void shuffle(long[] lookupIntValue2) {
+          for (int i = lookupIntValue2.length; i > 1; i--) {
+                  long temp = lookupIntValue2[i - 1];
+                  int randIx = (int) (Math.random() * i);
+                  lookupIntValue2[i - 1] = lookupIntValue2[randIx];
+                  lookupIntValue2[randIx] = (int)temp;
+          }
+	  }  
+	  
+	  public static List<Integer> grayCode(int start, int n) {
+
+		  List<Integer> result = new ArrayList<Integer>();
+
+		  if (n == 0) {
+		      result.add(0);
+		      return result;
+		  }
+
+		  for (int i = start; i < Math.pow(2, n); i++) {
+		      result.add(i ^ (i / 2));
+		  }
+
+		  return result;
+		  }
+	  
+	  public static ArrayList<Integer> grayCode2(int n) {
+		    ArrayList<Integer> arr = new ArrayList<Integer>();
+		    arr.add(0);
+		    for(int i=0;i<n;i++){
+		        int inc = 1<<i;
+		        for(int j=arr.size()-1;j>=0;j--){
+		            arr.add(arr.get(j)+inc);
+		        }
+		    }
+		    return arr;
+		}
+	  
+	  public static int Ones(int x) {
+			x -= ((x >> 1) & 0x55555555);
+			x = (((x >> 2) & 0x33333333) + (x & 0x33333333));
+			x = (((x >> 4) + x) & 0x0f0f0f0f);
+			x += (x >> 8);
+			x += (x >> 16);
+			return (x & 0x0000003f);
+		}
+	  
+	  static long next_gray(long gray)
+	  {
+	      if (is_gray_odd(gray))
+	      {
+	          long y = gray & -gray;
+	          return gray ^ (y << 1);
+	      }
+	      else
+	      {
+	          // Flip rightmost bit
+	          return gray ^ 1;
+	      }
+	  }
+	  
+	  static boolean is_gray_odd(long gray)
+	  {
+		  return (boolean)((Long.bitCount(gray) % 2) == 1);
+	  }
+	  
+	  static long  binaryToGray( long num)
+	  {
+	          return (num >> 1) ^ num;
+	  }
+	  
+	  static long grayToBinary(long num)
+	  {
+	      long mask;
+	      for (mask = num >> 1; mask != 0; mask = mask >> 1)
+	      {
+	          num = num ^ mask;
+	      }
+	      return num;
+	  }
+	  
 	public static void main(String args[]) throws Exception {
 		
-		int loopCount = 10 * 2;
-		int keyCount = 8000000;
-		int lookupsCount = 8000000;
-
-		//measureLongToInCostAutoBoxing(10000);
-		//measureIntToLongCostAutoBoxing(10000);
-		//measureIntToLongCostUnSafe(10000);
+		int loopCount = 100;
+		int keyCount = 16000000;
+		int lookupsCount = 1000000;
+		
 		getSize = false;
-		lookupValue = new long[lookupsCount];
-		lookupIntValue  = new int[lookupsCount];
+		keyValues = new long[keyCount];
 		arrayOfObjects = new ObjectToBeSerialised[keyCount];
 
 		Random rand = new Random();
-		for (long i = 0; i < lookupsCount; i++) {
-			lookupValue[(int)i] = (long) rand.nextInt(keyCount);
+		for (long i = 0; i < keyCount; i++) {
+			keyValues[(int)i] = i;
+			//lookupValue[(int)i] = ((long) rand.nextInt(keyCount));
 		}
-
-		for (long i = 0; i < loopCount; i++) {
-			runMultiHashMap(keyCount);
-			System.gc();
-		}
+		shuffle(keyValues);
 		
 		//testMultiHashMap(10);
 		
+		for (long i = 0; i < loopCount; i++) {
+			//runMultiHashMap(keyCount);
+			testMultiHashMap(keyCount);
+			Thread.sleep(2 * 1000);
+		}
+
 		if (loopCount == loopCount)
 			return ;
-		
 
-		
 		System.gc();
 		Thread.sleep(1 * 1000);
+		
 		for (int i = 1; i < 24; i++) {
 			measureMemoryPerformance(1,i);
 		}
